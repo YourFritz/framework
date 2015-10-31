@@ -1,0 +1,130 @@
+#! /bin/sh
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# - customization initialization file to be called from /etc/init.d/rc.S              #
+# - should be linked from /wrapper/E19-yourfritz to /etc/init.d on NAND based devices #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# we need some early subroutines which can't be included from intermediate file yet   #
+#                                                                                     #
+#######################################################################################
+yourfritz_log_message()
+{
+	local facility="${0##*/}" msg
+	eval msg="$(printf "\$YF_MSG_%04d" "$1")"
+	shift
+	printf "%s: $msg" "$facility" "$@" | $YOURFRITZ_LOGCMD
+}
+#######################################################################################
+#                                                                                     # 
+# some log settings duplicated here                                                   # 
+#                                                                                     # 
+#######################################################################################
+YOURFRITZ_LOGNAME="yourfritz"
+YOURFRITZ_LOGCMD="/bin/showshringbuf -i $YOURFRITZ_LOGNAME"
+#######################################################################################
+#                                                                                     # 
+# some messages duplicated here                                                       # 
+#                                                                                     # 
+#######################################################################################
+YF_MSG_0122="Customization suppressed due to existing semaphore file '%s' at location '%s'.\n"
+YF_MSG_0123="Customization suppressed because environment setting '%s' %s value '%s'.\n"
+YF_MSG_0124="Error %d executing script file '%s'.\n"
+YF_MSG_0125="Configuration file '%s' is missing or invalid.\n"
+YF_MSG_0126="Environment setting for configuration file (YOURFRITZ_CONF) is missing.\n"
+#######################################################################################
+#                                                                                     # 
+# we need our own real location to find the path from source base directory           #
+#                                                                                     # 
+#######################################################################################
+my_scriptname="$0"
+my_location="$(realpath $my_scriptname)"
+my_path="${my_location%/*}"
+my_name="${my_location##*/}"
+#######################################################################################
+#                                                                                     # 
+# check configuration file environment setting                                        #
+#                                                                                     # 
+#######################################################################################
+if [ ${#YOURFRITZ_CONF} -eq 0 ]; then
+    yourfritz_log_message 126
+    exit 126
+fi
+#######################################################################################
+#                                                                                     # 
+# is configuration file accessible?                                                   #
+#                                                                                     # 
+#######################################################################################
+if ! [ -f "$YOURFRITZ_CONF" -a -r "$YOURFRITZ_CONF" ]; then
+    yourfritz_log_message 125 "$YOURFRITZ_CONF" 
+    exit 125 
+fi
+#######################################################################################
+#                                                                                     # 
+# source the configuration file                                                       #
+#                                                                                     # 
+#######################################################################################
+source "$YOURFRITZ_CONF"
+#######################################################################################
+#                                                                                     #
+# first check lock out mechanisms and if none of them is set, initialize framework    #
+#                                                                                     #
+#######################################################################################
+runfile="$my_path/checklock"
+source "$runfile"
+if [ $rc -ne 0 ]; then
+	yourfritz_log_message 124 $rc "$runfile"
+	exit $rc
+fi
+#######################################################################################
+#                                                                                     #
+# first check lock out mechanisms and if none of them is set, initialize framework    #
+#                                                                                     #
+#######################################################################################
+runfile="$YOURFRITZ_INITSCRIPT"
+/bin/sh "$runfile" >/dev/null 2>&1
+rc=$?
+if [ $rc -ne 0 ]; then
+	yourfritz_log_message 124 $rc "$runfile"
+	exit $rc
+fi
+#######################################################################################
+#                                                                                     #
+# initialization done                                                                 #
+#                                                                                     #
+#######################################################################################
+exit $rc
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

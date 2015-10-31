@@ -1,0 +1,232 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# some helper routines to handle files                                                #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# mktemp - wrapper script to replace a possibly missing busybox applet                #
+# - create a unique file name                                                         #
+# - options are the same as for the busybox applet                                    #
+#                                                                                     #
+#######################################################################################
+yourfritz_mktemp()
+{
+	local rc
+	mktemp "$@" 2>/dev/null
+	rc=$?
+	if [ $rc -eq 127 ]; then
+		local dir=0 silent=1 withdir=0 basedir="$TMPDIR" baseset=0 print=0 template="tmp.XXXXXX" tempset=0 random
+		while [ ${#1} -gt 0 ]; do
+			if [ ${1:0:1} == '-' ]; then
+				opts=${1:1}
+				while [ ${#opts} -gt 0 ]; do
+					if [ $opts == p ]; then # directory name has to follow after this
+						[ $baseset -eq 1 ] && return 1 # duplicate -p option
+						withdir=1
+						[ ${#2} -eq 0 ] && return 1 # missing directory after -p
+						baseset=1
+						basedir="$2"
+						shift 
+						unset opts
+					else
+						opt=${opts:0:1}
+						opts=${opts:1}
+						case $opt in
+							d)
+								dir=1 # create a directory
+								;;
+							q)
+								silent=1 # do not display error messages, we'll never display any message
+								;;
+							t)
+								withdir=1 # prepend directory to template
+								;;
+							u)
+								print=1 # display only an appropriate name, do not create file/directory
+								;;	
+							*)
+								return 1 # invalid option
+								;;
+						esac
+					fi
+				done
+			else
+				[ $tempset -eq 1 ] && return 1 # too much parameters
+				[ "${1%XXXXXX}" == "$1" ] && return 1 # invalid template
+				template="$1"
+				tempset=1
+			fi
+			shift
+		done
+		[ ${#basedir} -eq 0 ] && basedir="/tmp"
+		while true; do
+			random=$(yourfritz_get_random_string 6)
+			name="$basedir/${template%XXXXXX}$random"
+			if [ $dir -eq 1 ]; then
+				if ! [ -d "$name" ]; then
+					[ $print -eq 0 ] && mkdir -p "$name"
+					echo "$name"
+					return 0
+				fi
+			else
+				if ! [ -f "$name" ]; then
+					[ $print -eq 0 ] && touch "$name"
+					echo "$name"
+					return 0
+				fi
+			fi
+		done
+	fi
+	return $rc
+}
+#######################################################################################
+#                                                                                     #
+# remount                                                                             #
+# - remount the specified mount point with or without write access                    #
+# - returns 0, if it was mounted r/w, 1 if the was already writable or 2 in case of   #
+#   an error, 3 if called with invalid parameters                                     #
+#                                                                                     #
+# $1 - mountpoint path                                                                #
+#                                                                                     #
+#######################################################################################
+yourfritz_remount()
+{
+	local rc=3 mountpoint="$1" newstate="$2" FSTYPE OPTIONS
+	[ x"$newstate" == x"ro" -o x"$newstate" == x"rw" ] || return $rc 
+	[ ${#mountpoint} -gt 0 ] || return $rc
+	eval $(sed -n -e "s|^[^ ]* $mountpoint \([^ ]*\) \([^ ]*\).*|FSTYPE=\1 OPTIONS=\"\2\"|p" /proc/mounts | sed -n -e "1p")
+	if [ ${#OPTIONS} -gt 0 ]; then
+		OIFS="$IFS"
+		IFS=,
+		set -- $OPTIONS
+		IFS="$OIFS"
+		while [ ${#1} -gt 0 ]; do
+			if [ "$1" == "ro" -o "$1" == "rw" ]; then
+				rc=1
+				if [ "$newstate" != "$1" ]; then
+					mount -o remount,$newstate "$mountpoint"
+					rc=$?
+					if [ $rc -ne 0 ]; then
+						yourfritz_log_message 60 $rc $FSTYPE "$mountpoint" $newstate
+						rc=2
+					fi
+				fi
+				break
+			fi
+			shift
+		done
+	fi
+	return $rc
+}
+#######################################################################################
+#                                                                                     #
+# find_mountpoint                                                                     #
+# - find the mount point for the specified path                                       #
+#                                                                                     #
+# $1 - path                                                                           #
+#                                                                                     #
+#######################################################################################
+yourfritz_find_mountpoint()
+{
+	local path="$1" dir DEV TYPE OPT line
+	if [ ${#path} -gt 0 ]; then
+		dir="$path"
+		while [ ${#dir} -gt 1 ]; do
+			line="$(sed -n -e "s|^\([^ ]*\) $dir \([^ ]*\) \([^ ]*\) .*\$|DEV=\1 TYPE=\2 OPT=\3|p" /proc/mounts)"
+			if [ ${#line} -gt 0 ]; then
+				eval $line
+				echo $dir
+				return 0
+			fi
+			dir="${dir%/*}"
+		done
+	fi
+	return 1
+}
+#######################################################################################
+#                                                                                     #
+# make_writable                                                                       #
+# - remount the volume for the specified path r/w, if needed                          #
+# - prints 0, if it was already writable and 1, if its mount state was changed        #
+#                                                                                     #
+# $1 - path                                                                           #
+#                                                                                     #
+#######################################################################################
+yourfritz_make_writable()
+{
+	local path="$1" rc=2 dir remounted
+	if [ ${#path} -gt 0 ]; then
+		mp=$(yourfritz_find_mountpoint "$path")
+		rc=$?
+		if [ $rc -eq 0 ]; then
+			yourfritz_remount "$mp" rw
+			rc=$?
+			if [ $rc -eq 0 ]; then
+				echo "1"
+			else
+				echo "0"
+			fi
+		fi
+	fi
+	return $rc
+}
+#######################################################################################
+#                                                                                     #
+# make_readonly                                                                       #
+# - remount the volume for the specified path r/o, if needed                          #
+# - prints 0, if it was already read-only and 1, if its mount state was changed       #
+#                                                                                     #
+# $1 - path                                                                           #
+#                                                                                     #
+#######################################################################################
+yourfritz_make_readonly()
+{
+	local path="$1" rc=3 dir remounted
+	if [ ${#path} -gt 0 ]; then
+		mp=$(yourfritz_find_mountpoint "$path")
+		rc=$?
+		if [ $rc -eq 0 ]; then
+			yourfritz_remount "$mp" ro
+			rc=$?
+			if [ $rc -eq 0 ]; then
+				echo "1"
+			else
+				echo "0"
+			fi
+		fi
+	fi
+	return $rc
+}
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

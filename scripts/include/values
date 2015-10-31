@@ -1,0 +1,123 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# some helper routines to convert/normalize values                                    #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# get_boolean                                                                         #
+# - convert input value from different boolean representations to "0" or "1"          #
+# - the return code will be nonzero, if the default value is used due to any reason   #
+#                                                                                     #
+# $1 - default value, if $2 isn't a valid value                                       #
+# $2 - the value to convert                                                           #
+#                                                                                     #
+#######################################################################################
+yourfritz_get_boolean()
+{
+	local rc=1 default=$1 value="$default" input="$2"
+	case "$input" in
+		0|[Nn][Oo]|[Nn]|[Ff][Aa][Ll][Ss][Ee])
+			value=0
+			rc=0
+			;;
+		1|[Yy][Ee][Ss]|[Yy]|[Tt][Rr][Uu][Ee])
+			value=1
+			rc=0
+			;;
+		*)
+			;;
+	esac
+	echo $value
+	return $rc
+}
+#######################################################################################
+#                                                                                     #
+# base64_encode                                                                       #
+# - encode a 1 to 3 byte value to a base64 representation                             #
+# - return code is nonzero, if an input parameter is invalid                          # 
+# - output is a "base64 tupel" consisting of 4 characters (3x8 bits encoded to 4x6)   #
+#                                                                                     #
+# $1 - the value to encod (in decimal)                                                #
+# $2 - the length of $1 (1 to 3 byte)                                                 #
+#                                                                                     #
+#######################################################################################
+yourfritz_base64_encode()
+{
+	local table="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+	local value="$1" valuelen="$2" i=4 s="" c
+	[ $valuelen -le 0 -o $valuelen -ge 4 ] && return 1
+	[ $valuelen -lt 3 ] && s="=" && i=3
+	[ $valuelen -lt 2 ] && s="==" && i=2 
+	while [ $i -gt 0 ]; do
+		c=$(( (value >> ((4 - $i) * 6)) & 0x3F ))
+		s=${table:$c:1}$s
+		let i-=1
+	done
+	echo $s
+	return 0
+}
+#######################################################################################
+#                                                                                     #
+# get_random_hex                                                                      #
+# - read a four byte value from /dev/urandom and return its hexadecimal string        #
+#                                                                                     #
+#######################################################################################
+yourfritz_get_random_hex()
+{
+	local value start
+	value=$(printf "%08X" $(testvalue /dev/urandom 4 0))
+	if [ ${#value} -gt 8 ]; then
+		start=$(( ${#value} - 8 ))
+		value=${value:$start:8}
+	fi
+	echo $value
+}
+#######################################################################################
+#                                                                                     #
+# get_random_string                                                                   #
+# - generate a random string using /dev/urandom and a (modified) base64 encoding      #
+#                                                                                     #
+# $1 - required length (between 4 and 32 characters)                                  #
+#                                                                                     #
+#######################################################################################
+yourfritz_get_random_string()
+{
+	local reqlen=${1:-8} s=""
+	while [ ${#s} -lt $reqlen ]; do
+		s="$(echo "$s$(yourfritz_base64_encode $(printf "%d" $(testvalue /dev/urandom 4 0)) 3)" | sed -e 's|/||g;s|\+||g')"
+	done
+	echo "${s:0:$reqlen}"
+}
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

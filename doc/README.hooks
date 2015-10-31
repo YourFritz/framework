@@ -1,0 +1,140 @@
+Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version. 
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License under
+
+http://www.gnu.org/licenses/gpl-2.0.html
+
+for more details.
+
+===============================================================================================
+
+The following hooks will be established modifying the stock firmware:
++------------------+-----------------+--------------------------------------------------------+
+| event            | script file     | call reason                                            |              
++------------------+-----------------+--------------------------------------------------------+
+| -                | S09-config      | - add configuration file path to permanent environment |
++------------------+-----------------+--------------------------------------------------------+
+| -                | E19-yourfritz   | - initialize the framework                             |
++------------------+-----------------+--------------------------------------------------------+
+| init             | S20-inithook    | - very early system interaction hook                   |
+|                  |                 | - no vendor daemons started yet                        |
+|                  |                 | - first possible call for a package, should be used    |
+|                  |                 |   very carefully                                       |
+|                  |                 | - most packages do not need to handle this event       |
++------------------+-----------------+--------------------------------------------------------+
+| startup          | S89-startuphook | - called late at the startup procedure                 |
+|                  |                 | - vendor daemons are started now, if they don't depend |
+|                  |                 |   on other conditions                                  |
++------------------+-----------------+--------------------------------------------------------+
+| sysready         | S99-tail        | - last action during the init process                  |
+|                  |                 | - may be used as a replacement for the earlier script  |
+|                  |                 |   execution of "debug.cfg" (or "rc.user")              |
++------------------+-----------------+--------------------------------------------------------+
+| onlinechanged    | onlinechanged/  | - called, if the online state of the system is changed |
+|                  | yourfritz       | - the indication, if the state changes to "online" or  | 
+|                  |                 |   "offline" is the argument collection of this call    |
+|                  |                 | - have a look at the vendor scripts for some samples   |
+|                  |                 |   how to handle these calls                            |
++------------------+-----------------+--------------------------------------------------------+
+| umount           | hotplug/storage | - called under various conditions during the process   |
+|                  | and             |   of dismounting USB volumes and devices               |
+|                  | hotplug/        | - the reason is specified as first parameter           |
+|                  | udev-mount-sd   | - possible reasons are:                                |
+|                  |                 +--------------------------------------------------------+
+|                  |                 |   umount_all - every USB volume will be unmounted in   |
+|                  |                 |   a short time, but it should be still available at    |
+|                  |                 |   time of this call                                    |
+|                  |                 +--------------------------------------------------------+
+|                  |                 |   umount <mp> - the device/volume mounted on the path  |
+|                  |                 |   <mp> is about to be unmounted now                    |
+|                  |                 +--------------------------------------------------------+
+|                  |                 |   lost <mp> - the device/volume was removed without    |
+|                  |                 |   any prior notification                               |    
+|                  |                 +--------------------------------------------------------+
+|                  |                 |   lost_all - every device/volume mounted was removed   |
+|                  |                 |   without any prior notification                       |    
+|                  |                 +--------------------------------------------------------+
+|                  |                 |   reconfig - the user requested an unload of usb       |
+|                  |                 |   volumes, you should close any opened files remaining |
+|                  |                 |   there                                                |
++------------------+-----------------+--------------------------------------------------------+
+| mount            | hotplug/        | - called to inform about a newly mounted device or     |
+|                  | udev-mount-sd   |   or volume, the mount point is specified as argument  |
+|                  |                 |   after the verb "mount" during call                   |
+|                  |                 | - the second reason for a call is the "last chance" to |
+|                  |                 |   change the mount point for a new volume (e.g. it's   |
+|                  |                 |   called prior to the mount command), the command verb |
+|                  |                 |   is "mountpoint" and the block device name, the media |
+|                  |                 |   number and the partition number follow the verb ...  |
+|                  |                 |   the finally used mount point path name (the last     |
+|                  |                 |   level only) has to be written to stdout by this hook |
++------------------+-----------------+--------------------------------------------------------+
+| reboot_init      | post_install    | - reboot process will be started now ... you've to     |
+|                  |                 |   return 0 to continue the processing of post_install  |
+|                  |                 |   script, but you can't really avoid the reboot action |
+|                  |                 |   in some cases                                        |
++------------------+-----------------+--------------------------------------------------------+
+| reboot_stopusb   | post_install    | - USB subsystem is about to be stopped now, this event |
+|                  |                 |   may occur at the beginning or near the end of the    |
+|                  |                 |   reboot process                                       |
++------------------+-----------------+--------------------------------------------------------+
+| reboot_killer    | post_install    | - any process keeping open files on the internal flash |
+|                  |                 |   filesystem (usually /var/media/ftp) is about to be   |
+|                  |                 |   stopped to be able to dismount this device           |
++------------------+-----------------+--------------------------------------------------------+
+| reboot_savevents | post_install    | - the vendor's event log is about to be saved, usually |
+|                  |                 |   the stock firmware does not contain the needed file  |
+|                  |                 |   (sbin/eventctrl) to be called here                   |
++------------------+-----------------+--------------------------------------------------------+
+| reboot_finished  | post_install    | - processing the post_install script is nearly done    |
+|                  |                 |   here                                                 |
+|                  |                 | - the next call is the deinstallation of the complete  |
+|                  |                 |   framework (e99-yourfritz)                            |
+|                  |                 | - if there is a pending firmware update initiated by   |
+|                  |                 |   the var/install script of an image from the vendor,  |
+|                  |                 |   the additional commands will be executed after this  |
+|                  |                 |   last step                                            |
++------------------+-----------------+--------------------------------------------------------+
+| -                | e99-yourfritz   | - the framework will be deinitialized here             |
+|                  |                 | - any remaining mounted volume (tmpfs or bind-mount)   |
+|                  |                 |   will be unmounted and any unsaved configuration data |
+|                  |                 |   stored there will be lost                            |
++------------------+-----------------+--------------------------------------------------------+
+| profile          | etc/profile     | - called during the initialization of a new shell      |
+|                  |                 |   session                                              | 
++------------------+-----------------+--------------------------------------------------------+
+| eventctrl        | sbin/eventctrl  | - called during vendor's post_install processing, will |
+|                  |                 |   do nothing (exit 0) until customized                 |
+|                  |                 | - the script is linked to the framework only as a pre- |
+|                  |                 |   caution to get the ability to react to this event    |
++------------------+-----------------+--------------------------------------------------------+
+
+There will be a "modscript" provided to be used with my "modfs" framework to establish the 
+hooks listed above to an unmodified filesystem from the vendor.
+
+If you think, you want to get any additional hook, you've to provide the needed script code and
+to change the "hooks" settings file of the framework.
+
+The framework was developed for a NAND-based device. Even if it may be used with a NOR-based
+device too, there are some specific circumstances to mention in this case. Especially where
+the framework files are stored, leads to some necessary changes, if they are not included into
+the SquashFS image. The path /var/media/ftp (a potential place to store them) is unmounted
+during post_install and calling some of the reboot hooks will fail. Even the final dismount of
+the framework directories has to be modified in this case.
+
+The 6490 is another special device. While it carries enough NAND flash to take the whole
+framework in the SquashFS image together with all vendor contents, the /var/media/ftp path
+can't be used for changeable configuration files for the ARM core, because it's mounted late in
+the boot process from a NFS share of the ATOM core. Here we've to use the TFFS storage or MTD3
+(under the path /nvram) to store our configuration files and we've to remember too, that some
+other places, where packages may be stored, are only available as long as a functioning
+network is running. Here it's much better to use additional packages at the ATOM core, its
+performance is even better.

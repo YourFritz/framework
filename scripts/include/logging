@@ -1,0 +1,65 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# load_message                                                                        #
+# - load a message definition from our message file                                   #
+#                                                                                     #
+# $1 - message number                                                                 #
+#                                                                                     #
+#######################################################################################
+yourfritz_load_message()
+{
+	local msg
+	eval msg="$(printf "YF_MSG_%04d" $1)"
+	sed -n -e "s|^$msg=\"\(.*\)\"\$|\1|p" $YOURFRITZ_MESSAGES
+	return $?
+}
+#######################################################################################
+#                                                                                     #
+# log_message                                                                         #
+# - add a message to our log target                                                   #
+#                                                                                     #
+# $1 - message number                                                                 #
+# $* - substitution values for printf command                                         #
+#                                                                                     #
+#######################################################################################
+yourfritz_log_message()
+{
+	local facility="${0##*/}" msg
+	msg="$(yourfritz_load_message "$1")"
+	shift 
+	printf "%s: $msg" "$facility" "$@" | $YOURFRITZ_LOGCMD
+	return 0
+}
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

@@ -1,0 +1,12 @@
+Die Anpassung der Framework-Dateien an die 6490 ist praktisch komplett
+unvollständig.
+
+Da /var/media/ftp erst über NFS-Share gemountet wird, ist die Reihenfolge
+besonders auf dem ARM-Core stark zu ändern. Zusatzpakete sollten ohnehin
+auf dem ATOM-Core laufen (und Kommandos auf dem ARM-Core dann eben über
+"rpc" ausführen), da dieser Kern wesentlich performanter zu sein scheint.
+
+Auch ist natürlich die Verwendung von x86-Binaries auf dem ATOM-Core 
+wesentlich einfacher (statisch gelinkt, Kernel-Version sollte halbwegs
+passen) und man muß nicht in jedem Falle eine Buildroot-Umgebung für den
+ARM-Core unterhalten, um eigene Binaries ausführen zu können.

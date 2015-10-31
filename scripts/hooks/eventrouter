@@ -1,0 +1,108 @@
+#! /bin/sh 
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# event router to handle hooks of installed packages into the stock firmware          #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_CONF"
+#######################################################################################
+#                                                                                     #
+# our file name is the name of the event occured, let's dissect this first            #
+#                                                                                     #
+#######################################################################################
+my_scriptname="$0"
+my_location="$(realpath $my_scriptname)"
+my_path="${my_location%/*}"
+my_name="${my_location##*/}"
+my_path_check_length=${#YOURFRITZ_SCRIPTSDIR}
+my_callname="${0##*/}"
+#######################################################################################
+#                                                                                     #
+# create a list of event listeners, sort it and call each script                      #
+#                                                                                     #
+#######################################################################################
+yourfritz_hook_handler()
+{
+	local event="$1" rc=0 script lrc
+	shift
+	find "$YOURFRITZ_HOOKSDIR/$event.d" -type l | sort |
+	while read script; do
+		/bin/sh $script "$@" 1>/dev/null 2>&1
+		lrc=$?
+		if [ $lrc -ne 0 ]; then
+			yourfritz_log_message 102 $lrc "$script"
+		fi
+		[ $lrc -gt $rc ] && rc=$lrc
+	done
+	return $rc
+}
+#######################################################################################
+#                                                                                     #
+# detect call style and execute event handlers as necessary                           #
+#                                                                                     #
+#######################################################################################
+if [ "${my_path:0:$my_path_check_length}" == "$YOURFRITZ_SCRIPTSDIR" ]; then
+	# called with an own shell instance
+	event="$my_callname"
+	sourced=0
+else 
+	# called by source command
+	# event has to be set as "YF_EVENT" already
+	if [ ${#YF_EVENT} -eq 0 ]; then
+		yourfritz_log_message 101
+		unset event
+	else
+		event="$YF_EVENT"
+	fi
+	sourced=1
+fi
+if [ ${#event} -gt 0 ]; then
+	yourfritz_hook_handler "$event" "$@"
+	rc=$?
+fi
+#######################################################################################
+#                                                                                     #
+# we've finished here ... avoid using "exit" statement, if we were sourced            #
+#                                                                                     #
+#######################################################################################
+if [ "${my_scriptname##*/}" == "reboot" ]; then
+	if [ -e "/var/run/yourfritz_reboot_quit_on_error" ]; then
+		echo "FAILED $rc"
+	else
+		echo "CONTINUE"
+	fi
+fi
+[ $sourced -eq 0 ] && exit $rc
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

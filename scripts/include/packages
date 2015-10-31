@@ -1,0 +1,197 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# init_package                                                                        #
+# - add a package to our run directory                                                #
+#                                                                                     #
+# $1 - package name                                                                   #
+# $2 - package status                                                                 #
+# $3 - call source (setup or framework)                                               #
+#                                                                                     #
+#######################################################################################
+yourfritz_init_package()
+{
+	local package="$1" active="$2" state="$3" hook order count activeshow rc=0
+	count=$(cat "$YOURFRITZ_RUNDIR/count" 2>/dev/null)
+	[ $active -eq 1 ] && activeshow="active" || activeshow="inactive"
+	yourfritz_log_message 80 "$package" $activeshow
+	! [ -r $YOURFRITZ_SOURCEPKGDIR/$package/$package.image ] && return
+	mkdir -p "$YOURFRITZ_PACKAGESDIR/$package" 2>/dev/null
+	mount "$YOURFRITZ_SOURCEPKGDIR/$package/$package.image" "$YOURFRITZ_PACKAGESDIR/$package" 2>/dev/null
+	rc=$?
+	[ $rc -ne 0 ] && return $rc
+	mkdir -p "$(readlink $YOURFRITZ_PACKAGESDIR/$package/tmp)" 2>/dev/null
+	rc=$?
+	[ $rc -ne 0 ] && return $rc
+	mkdir -p "$(readlink $YOURFRITZ_PACKAGESDIR/$package/etc)" 2>/dev/null
+	rc=$?
+	[ $rc -ne 0 ] && return $rc
+	tar -x -j -f "$YOURFRITZ_SOURCEPKGDIR/$package/$package.conf" -C "$YOURFRITZ_PACKAGESDIR/$package/etc" 2>/dev/null
+	rc=$?
+	/bin/sh -x "$YOURFRITZ_PACKAGESDIR/$package/initpackage" $package $active $state $rc 2>/var/tmp/$package.log
+	rc=$?
+	return $rc
+}
+#######################################################################################
+#                                                                                     #
+# shutdown_package                                                                    #
+# - remove a package from our run directory                                           #
+#                                                                                     #
+# $1 - package name                                                                   #
+#                                                                                     #
+#######################################################################################
+yourfritz_shutdown_package()
+{
+	local package="$1" rc=0 temp line MP DEV FSTYPE maxrc=0
+	temp="$(yourfritz_mktemp -p $YOURFRITZ_TMPDIR)"
+	sed -n -e "s|^\([^ ]*\) *\($YOURFRITZ_RUNDIR/$package[^ ]*\) *\([^ ]*\).*\$|dev=\"\1\" mp=\"\2\" fstype=\"\3\"|p" /proc/mounts |
+	while read line; do
+		eval "$line"
+		printf "%d MP=\"%s\" FSTYPE=\"%s\" DEV=\"%s\"\n" ${#mp} "$mp" "$fstype" "$dev" >>"$temp"
+	done
+	sort -rn "$temp" | sed -n -e "s|^[0-9]* \(.*\)\$|\1|p" |
+	while read line; do
+		eval "$line"
+		umount $MP
+		rc=$?
+		if [ $rc -ne 0 ]; then
+			[ $rc -gt $maxrc ] && maxrc=$rc
+			yourfritz_log_message 82 $rc "$FSTYPE" "$MP" "$DEV" 
+		else
+			yourfritz_log_message 83 "$FSTYPE" "$MP"  
+		fi
+	done
+	rm "$temp" 2>/dev/null
+	[ $maxrc -eq 0 ] && yourfritz_log_message 84 "$package"
+	return $maxrc
+}
+#######################################################################################
+#                                                                                     #
+# save_package_settings                                                               #
+# - save the etc subdirectory of the specified package to a compressed file           #
+#                                                                                     #
+# $1 - package name                                                                   #
+#                                                                                     #
+#######################################################################################
+yourfritz_save_package_settings()
+{
+	local rc=110 package="$1" was_readonly
+	if [ ${#package} -gt 0 ]; then
+		if [ -d "$YOURFRITZ_PACKAGESDIR/$package" ]; then
+			was_readonly=$(yourfritz_make_writable "$YOURFRITZ_SOURCEPKGDIR/$package")
+			tar -C "$YOURFRITZ_PACKAGESDIR/$package/etc" . | bzip -9c >"$YOURFRITZ_SOURCEPKGDIR/$package/$package.conf"
+			rc=$?
+			[ $was_readonly -eq 1 ] && yourfritz_make_readonly "$YOURFRITZ_SOURCEPKGDIR/$package"
+		fi
+	fi
+	return $rc
+}
+#######################################################################################
+#                                                                                     #
+# setup_package_hook                                                                  #
+# - setup the specified hook for a package                                            #
+#                                                                                     #
+# $1 - package name                                                                   #
+# $2 - hook name                                                                      #
+# $3 - script to link for the package                                                 #
+#                                                                                     #
+#######################################################################################
+yourfritz_setup_package_hook()
+{
+	local rc=103 package="$1" hook="$2" script="$3" order last_number sort_option number
+	if [ ${#script} -gt 0 ]; then
+		if [ -e $script -a -x $script ]; then
+			if [ -d "$YOURFRITZ_HOOKSDIR/$hook.d" ]; then
+				order=$(cat "$YOURFRITZ_HOOKSDIR/$hook.d/order")
+				[ "$order" == "+" ] && sort_option="-n" || sort_option="-rn"
+				last_number=$(cd "$YOURFRITZ_HOOKSDIR/$hook.d";find | sed -n -e "s|^\./\([0-9][0-9]\).*|\1|p" | sort $sort_option | sed -n -e "1p")
+				[ ${#last_number} -eq 0 ] && last_number=0
+				[ $last_number -eq 0 -a "$order" == "-" ] && last_number=100
+				[ "$order" == "-" ] && let number=last_number-1 || let number=last_number+1
+				ln -s "$script" "$YOURFRITZ_HOOKSDIR/$hook.d/$(printf "%02d-%s" $number $package)"
+				rc=$?
+			fi
+		fi
+	fi
+	return $rc
+}
+#######################################################################################
+#                                                                                     #
+# unset_package_hook                                                                  #
+# - remove the specified hook for a package                                           #
+#                                                                                     #
+# $1 - package name                                                                   #
+# $2 - hook name                                                                      #
+#                                                                                     #
+#######################################################################################
+yourfritz_unset_package_hook()
+{
+	local rc=105 package="$1" hook="$2" file
+	if [ ${#hook} -gt 0 ]; then
+		if [ -d "$YOURFRITZ_HOOKSDIR/$hook.d" ]; then
+			rc=0
+			find "$YOURFRITZ_HOOKSDIR/$hook.d" -name "[0-9][0-9]-$package" |
+			while read file; do
+				rm "$file" 2>/dev/null
+			done
+		fi
+	fi
+	return $rc
+}
+#######################################################################################
+#                                                                                     #
+# setup_package_libraries                                                             #
+# - prepare package libraries to be found in the expected RPATH                       #
+#                                                                                     #
+# $1 - package name                                                                   #
+#                                                                                     #
+#######################################################################################
+yourfritz_setup_package_libraries()
+{
+	local package="$1"
+	for file in $(find "$YOURFRITZ_PACKAGESDIR/$package/lib" -type f); do
+		libname="${file##*/}"
+		if ! [ -f "$YOURFRITZ_BASEDIR/lib/$libname" ]; then
+			cp -a "$YOURFRITZ_PACKAGESDIR/$package/lib/$libname" "$YOURFRITZ_BASEDIR/lib/$libname" 2>/dev/null
+		fi
+	done
+	for file in $(find "$YOURFRITZ_PACKAGESDIR/$package/lib" -type l); do
+		libname="${file##*/}"
+		if ! [ -L "$YOURFRITZ_BASEDIR/lib/$libname" ]; then
+			cp -a "$file" "$YOURFRITZ_BASEDIR/lib/" 2>/dev/null
+		fi
+	done
+	return 0
+}
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

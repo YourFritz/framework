@@ -1,0 +1,71 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# some subroutines to be called from the framework to link installed packages in      #
+#                                                                                     #
+#######################################################################################
+yourfritz_setup_packages()
+{
+	local count=0 rc=0 name value order
+	source "$YOURFRITZ_CONFDIR/packages"
+	while true; do
+		let count+=1
+		eval name="\$YF_PACKAGE_${count}_NAME"
+		[ ${#name} -eq 0 ] && break
+		if [ $count -gt $YOURFRITZ_MAXPACKAGES ]; then
+			yourfritz_log_message 99 $YOURFRITZ_MAXPACKAGES
+			rc=99
+		else
+			echo $count>"$YOURFRITZ_RUNDIR/count"
+			eval active="\$YF_PACKAGE_${count}_ACTIVE"
+			active=$(yourfritz_get_boolean 0 "$active")
+			yourfritz_init_package "$name" $active "setup"
+			rc=$?
+		fi
+	done
+	return $rc
+}
+yourfritz_shutdown_packages()
+{
+	local count=0 rc=0 name value order
+	source "$YOURFRITZ_CONFDIR/packages"
+	while true; do
+		let count+=1
+		eval name="\$YF_PACKAGE_${count}_NAME"
+		[ ${#name} -eq 0 ] && break
+		yourfritz_shutdown_package "$name" $active "setup"
+	done
+	return $rc
+}
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

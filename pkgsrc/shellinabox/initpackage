@@ -1,0 +1,106 @@
+#! /bin/sh
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# package initialization template script                                              #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_CONF"
+#######################################################################################
+#                                                                                     #
+# our parameters                                                                      #
+# $1 - package name                                                                   #
+# $2 - package state (inactive/active)                                                #
+# $3 - call reason                                                                    #
+#      setup     - set up the package after starting the system                       #
+#      framework - set up the package while the system is already running             #
+#      config    - configure the package and rebuild the .conf archive file           #
+#      install   - install the package                                                #
+#      uninstall - uninstall the package                                              #
+#                                                                                     #
+#######################################################################################
+PACKAGENAME="$1"
+PACKAGESTATE="$2"
+INITREASON="$3"
+#######################################################################################
+#                                                                                     #
+# check parameters                                                                    #
+#                                                                                     #
+#######################################################################################
+if [ ${#INITREASON} -le 0 ]; then
+	yourfritz_log_message 85
+	exit 85
+fi
+if [ $PACKAGESTATE -ne 0 -a $PACKAGESTATE -ne 1 ]; then
+	yourfritz_log_message 86
+	exit 86
+fi
+case "$INITREASON" in
+	"setup")
+		mode=1
+		;;
+	"framework")
+		mode=2
+		;;
+	"config")
+		mode=3
+		;;
+	"install")
+		mode=4
+		;;
+	"uninstall")
+		mode=5
+		;;
+	*)
+		yourfritz_log_message 87
+		exit 87
+		;;
+esac
+#######################################################################################
+#                                                                                     #
+# handle initialization                                                               #
+#                                                                                     #
+#######################################################################################
+if [ $mode -eq 1 -o $mode -eq 2 ]; then
+	yourfritz_setup_package_libraries "$PACKAGENAME"
+	yourfritz_setup_package_hook "$PACKAGENAME" startup "$YOURFRITZ_PACKAGESDIR/$PACKAGENAME/scripts/startup"
+	yourfritz_setup_package_hook "$PACKAGENAME" reboot "$YOURFRITZ_PACKAGESDIR/$PACKAGENAME/scripts/reboot"
+fi
+#######################################################################################
+#                                                                                     #
+# our job is done                                                                     #
+#                                                                                     #
+#######################################################################################
+exit 0
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

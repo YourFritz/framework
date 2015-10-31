@@ -1,0 +1,175 @@
+#! /bin/sh
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# initialize the basic framework functions                                            #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_CONF"
+#######################################################################################
+#                                                                                     #
+# first check, if our base directory is mounted already                               #
+#                                                                                     #
+#######################################################################################
+mp=$(sed -n -e "s|^[^ ]* $YOURFRITZ_BASEDIR \([^ ]*\) \([^ ]*\).*\$|\1,\2|p" /proc/mounts)
+if [ ${#mp} -ne 0 ]; then
+	yourfritz_log_message 118
+	exit 118 # YF_EC_ALREADYRUNNING
+fi
+#######################################################################################
+#                                                                                     #
+# prepare our intermediate include/settings file, which includes all non-comment      #
+# lines from the YOURFRITZ_INCLUDESDIR and YOURFRITZ_CONFDIR files not exluded        #
+# explicitely.                                                                        #
+#                                                                                     #
+#######################################################################################
+my_scriptname="$0"
+my_location="$(realpath $my_scriptname)"
+my_path="${my_location%/*}"
+my_name="${my_location##*/}"
+conf_file="${YOURFRITZ_CONF##*/}"
+source "$my_path/assembleconf"
+yourfritz_assemble_configuration >"/tmp/$conf_file"
+#######################################################################################
+#                                                                                     #
+# now source our settings from this location to be prepared from this point on to use #
+# the normal include files and settings                                               #
+#                                                                                     #
+#######################################################################################
+source "/tmp/$conf_file"
+#######################################################################################
+#                                                                                     #
+# create our temporary base directory                                                 #
+#                                                                                     #
+#######################################################################################
+mkdir -p "$YOURFRITZ_TMPDIR"
+#######################################################################################
+#                                                                                     #
+# check, if every mandatory setting is present                                        #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_SOURCEDIR/scripts/include/settings"
+yourfritz_check_mandatory_settings
+rc=$?
+[ $rc -ne 0 ] && exit $rc
+#######################################################################################
+#                                                                                     #
+# bind mount our source directory to the customization base directory                 #
+#                                                                                     #
+#######################################################################################
+[ -d "$YOURFRITZ_BASEDIR" ] || mkdir -p "$YOURFRITZ_BASEDIR"
+mount -o bind "$YOURFRITZ_SOURCEDIR" "$YOURFRITZ_BASEDIR"
+rc=$?
+if [ $rc -ne 0 ]; then
+	yourfritz_log_message 121 $rc "$YOURFRITZ_SOURCEDIR" "$YOURFRITZ_BASEDIR"
+	exit 121 # YF_EC_MOUNTBASEDIR
+else
+	yourfritz_log_message 117 "$YOURFRITZ_SOURCEDIR" "$YOURFRITZ_BASEDIR"
+fi
+#######################################################################################
+#                                                                                     #
+# bind mount our GUI extension directory                                              #
+#                                                                                     #
+#######################################################################################
+mount -o bind "$YOURFRITZ_GUIDIR" "$YOURFRITZ_GUITARGETDIR"
+rc=$?
+if [ $rc -ne 0 ]; then
+	yourfritz_log_message 121 $rc "$YOURFRITZ_GUIDIR" "$YOURFRITZ_GUITARGETDIR"
+	exit 121 # YF_EC_MOUNTBASEDIR
+else
+	yourfritz_log_message 117 "$YOURFRITZ_GUIDIR" "$YOURFRITZ_GUITARGETDIR"
+fi
+#######################################################################################
+#                                                                                     #
+# mount entries from our fstab file                                                   #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_SCRIPTSDIR/framework/mountfstab"
+yourfritz_mount_fstab_entries "$YOURFRITZ_CONFDIR/fstab"
+rc=$?
+[ $rc -ne 0 ] && exit $rc
+#######################################################################################
+#                                                                                     #
+# bind mount our assembled configuration file                                         #
+#                                                                                     #
+#######################################################################################
+mv "/tmp/$conf_file" "$YOURFRITZ_HOOKSDIR/$conf_file"
+mount -o bind "$YOURFRITZ_HOOKSDIR/$conf_file" "$YOURFRITZ_CONF"
+rc=$?
+[ $rc -ne 0 ] && exit $rc
+mount -o bind "$YOURFRITZ_HOOKSDIR/$conf_file" "$YOURFRITZ_ETCDIR/$conf_file"
+rc=$?
+[ $rc -ne 0 ] && exit $rc
+#######################################################################################
+#                                                                                     #
+# set up our hook handlers                                                            #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_SCRIPTSDIR/framework/setuphooks"
+yourfritz_setup_hook_routing
+rc=$?
+[ $rc -ne 0 ] && exit $rc
+#######################################################################################
+#                                                                                     #
+# start an instance of runsvdir to handle our services                                #
+#                                                                                     #
+#######################################################################################
+mkdir -p "$YOURFRITZ_TMPDIR/bin" "$YOURFRITZ_TMPDIR/run"
+export PATH=$YOURFRITZ_TMPDIR/bin:$PATH
+start-stop-daemon -x runsvdir -p "$YOURFRITZ_TMPDIR/run/runsvdir.pid" -m -b -S -- -s "$YOURFRITZ_SCRIPTSDIR/framework/runsv_signal" "$YOURFRITZ_RUNDIR"
+sleep 1
+yourfritz_log_message 3 $(cat "$YOURFRITZ_TMPDIR/run/runsvdir.pid")
+#######################################################################################
+#                                                                                     #
+# initialize packages                                                                 #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_SCRIPTSDIR/framework/packages"
+yourfritz_setup_packages     
+rc=$?
+[ $rc -ne 0 -a $rc -ne 99 ] && exit $rc
+#######################################################################################
+#                                                                                     #
+# initialization finished, all further actions for the installed packages             #
+# will take place at the appropriate "hook points"                                    #
+#                                                                                     #
+#######################################################################################
+yourfritz_log_message 1
+#######################################################################################
+#                                                                                     #
+# our job is done - any errors from packages are outside our reference                #
+#                                                                                     #
+#######################################################################################
+exit 0
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

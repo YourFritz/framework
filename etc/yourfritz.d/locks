@@ -1,0 +1,57 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# possible locks to suppress framework initialization                                 #
+#                                                                                     #
+# - existing file "noframework.sema" in /wrapper/custom                               #
+# - existing file "noframework.sema" in /var (possibly from var.tar)                  #
+# - existing file "noframework.sema" in /var/media/ftp                                #
+# - existing entry "customize=no" ptest value from the urlader environment, this will #
+#   be cleared by the stock firmware on each boot process (in S42-ptest)              #
+# - SerialNumber value from urlader environment set to "0123456789ABCDEF"             #
+#                                                                                     #
+# If any of the conditions above is met, the script will exit with a return code      #
+# greater than 0 and any customization will be suppressed.                            #
+#                                                                                     #
+#######################################################################################
+YF_URLADER_ENVIRONMENT="/proc/sys/urlader/environment"
+YF_SEMA_FILE_1="noframework.sema"
+YF_SEMA_LOCATIONS_1="/wrapper/custom /var /var/media/ftp"
+YF_ENV_NAME_1="ptest"
+YF_ENV_VALUE_1="customize=no"
+YF_ENV_MATCH_1="contains"
+YF_ENV_NAME_2="SerialNumber"
+YF_ENV_VALUE_2="0123456789ABCDEF"
+YF_ENV_MATCH_2="equals"
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

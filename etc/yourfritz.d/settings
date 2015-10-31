@@ -1,0 +1,54 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# our mandatory configuration settings are listed here                                #
+#                                                                                     #
+#######################################################################################
+YF_SETTING_MAND_1="NAME"
+YF_SETTING_MAND_2="CONFDIR"
+YF_SETTING_MAND_3="SOURCEDIR"
+YF_SETTING_MAND_4="BASEDIR"
+YF_SETTING_MAND_5="LOGNAME"
+YF_SETTING_MAND_6="LOGCMD"
+YF_SETTING_MAND_7="MESSAGES"
+YF_SETTING_MAND_8="ETCDIR"
+YF_SETTING_MAND_9="TMPDIR"
+YF_SETTING_MAND_10="SCRIPTSDIR"
+YF_SETTING_MAND_11="SHUTDOWNSCRIPT"
+YF_SETTING_MAND_12="INCLUDESDIR"
+YF_SETTING_MAND_13="PACKAGESDIR"
+YF_SETTING_MAND_14="RUNDIR"
+YF_SETTING_MAND_15="MAXPACKAGES"
+YF_SETTING_MAND_16="HOOKSDIR"
+#######################################################################################
+#                                                                                     #
+#                             end of configuration file                               # 
+#                                                                                     #
+#######################################################################################

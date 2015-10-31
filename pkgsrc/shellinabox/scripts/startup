@@ -1,0 +1,76 @@
+#! /bin/sh
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# package startup template script                                                     #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_CONF"
+my_scriptname="$0"
+my_location="$(realpath $my_scriptname)"
+my_path="${my_location%/*}"
+my_name="${my_location##*/}"
+my_package="${my_path%/scripts}"
+my_package="${my_package##*/}"
+[ -f "$YOURFRITZ_TMPDIR/$my_package/run/.startup" ] && exit 0
+source "$YOURFRITZ_PACKAGESDIR/$my_package/etc/$my_package.cfg"
+mkdir -p "$YOURFRITZ_TMPDIR/$my_package/run/log" "$YOURFRITZ_TMPDIR/$my_package/log" 2>/dev/null
+cat >"$YOURFRITZ_TMPDIR/$my_package/run/run" <<EOT
+#! /bin/sh
+exec 2>&1
+exec $YOURFRITZ_PACKAGESDIR/$my_package/bin/shellinaboxd --cert-from-box -g 0 -u 0 -p $SIAB_PORT -s /:0:0:$SIAB_HOMEDIR:/sbin/ar7login
+exit 0
+EOT
+cat >"$YOURFRITZ_TMPDIR/$my_package/run/finish" <<EOT
+#! /bin/sh
+[ -f "$YOURFRITZ_TMPDIR/$my_package/run/.startup" ] && exit 0
+rm $YOURFRITZ_RUNDIR/$my_package
+exit 0
+EOT
+cat >"$YOURFRITZ_TMPDIR/$my_package/run/log/run" <<EOT
+#! /bin/sh
+exec 2>&1
+exec svlogd -tt $YOURFRITZ_TMPDIR/$my_package/run/log
+exit 0
+EOT
+chmod 555 "$YOURFRITZ_TMPDIR/$my_package/run/log/run" "$YOURFRITZ_TMPDIR/$my_package/run/run" "$YOURFRITZ_TMPDIR/$my_package/run/finish" 2>/dev/null
+touch "$YOURFRITZ_TMPDIR/$my_package/run/.startup" 2>/dev/null
+ln -s "$YOURFRITZ_TMPDIR/$my_package/run" "$YOURFRITZ_RUNDIR/$my_package"
+#######################################################################################
+#                                                                                     #
+# our job is done                                                                     #
+#                                                                                     #
+#######################################################################################
+exit 0
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
