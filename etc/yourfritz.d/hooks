@@ -1,0 +1,70 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# possible hooks - every hook needs to be incorporated into vendors code with the     #
+#                  appropriate modification to some vendor scripts                    #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# init    - called first after this script is finished                                #
+# startup - called later during init process, if USB, WLAN and AVM's applications are #
+#           started already, USB volumes are not necessarily mounted yet              #
+# ready   - called as last action before rc.S is exiting (from S99-tail)              #
+#           started already, USB volumes are not necessarily mounted yet              #
+# reboot  - called while /var/post_install is running, execution is asynchronously to #
+#           other post_install processing - but post_install will wait until every    #
+#           hook script started here is finished                                      #
+# mount   - called after a new USB volume was mounted successfully, may be used to    #
+#           check for needed additional files                                         #
+# umount  - called before an USB volume is dismounted, may be omitted if the volume   #
+#           was removed without dismounting and called again to clean up any mess     #
+#           remaining after an odd removal                                            #
+# profile - called at the end of "/etc/profile" processing, may be used to change     #
+#           the environment to embrace additional commands (PATH setting) or any      #
+#           actions to encompass the package                                          #
+# connect - called each time the connection state changes, will be bound to the       #
+#           original "onlinechanged" event and isn't available under some configu-    #
+#           rations (ip client mode or cascaded routers), you've to implement your    #
+#           own monitor, if this isn't sufficient                                     #
+#                                                                                     #
+#######################################################################################
+YF_HOOK_1="+init"
+YF_HOOK_2="+startup"
+YF_HOOK_3="-reboot"
+YF_HOOK_4="+mount"
+YF_HOOK_5="-umount"
+YF_HOOK_6="+profile"
+YF_HOOK_7="+onlinechanged"
+YF_HOOK_8="+sysready"
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

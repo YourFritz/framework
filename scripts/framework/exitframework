@@ -1,0 +1,90 @@
+#! /bin/sh
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# cleanup any remaining mounts from customization                                     #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_CONF"
+#######################################################################################
+#                                                                                     #
+# shutdown all remaining packages                                                     #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_SCRIPTSDIR/framework/packages"
+yourfritz_shutdown_packages
+start-stop-daemon -x runsvdir -p "$YOURFRITZ_TMPDIR/run/runsvdir.pid" -K
+sleep 1
+#######################################################################################
+#                                                                                     #
+# unmount every remaining mounted device and/or bound mountpoint                      #
+#                                                                                     #
+#######################################################################################
+temp="$(yourfritz_mktemp -p $YOURFRITZ_TMPDIR)"
+sed -n -e "s|^\([^ ]*\) *\($YOURFRITZ_BASEDIR[^ ]*\) *\([^ ]*\).*\$|dev=\"\1\" mp=\"\2\" fstype=\"\3\"|p" /proc/mounts |
+while read line; do
+	eval "$line"
+	printf "%d MP=\"%s\" FSTYPE=\"%s\" DEV=\"%s\"\n" ${#mp} "$mp" "$fstype" "$dev" >>"$temp"
+done
+umount "$YOURFRITZ_CONF" 2>/dev/null
+rc=$?
+if [ $rc -ne 0 ]; then
+	yourfritz_log_message 115 $rc "$MP" "$DEV" "$FSTYPE"
+	echo "myPID=$$" 1>&2
+	lsof | grep $MP 1>&2
+fi
+umount "$YOURFRITZ_GUITARGETDIR"
+rc=$?
+if [ $rc -ne 0 ]; then
+	yourfritz_log_message 115 $rc "$MP" "$DEV" "$FSTYPE"
+	echo "myPID=$$" 1>&2
+	lsof | grep $MP 1>&2
+fi
+sort -rn "$temp" | sed -n -e "s|^[0-9]* \(.*\)\$|\1|p" | 
+while read line; do
+	eval "$line"
+	umount "$MP"
+	rc=$?
+	if [ $rc -ne 0 ]; then
+		yourfritz_log_message 115 $rc "$MP" "$DEV" "$FSTYPE"
+		echo "myPID=$$" 1>&2
+		ls -la /proc/$$/fd/* 1>&2
+		lsof | grep $MP 1>&2
+		pstree -p 1>&2
+	fi
+done
+rm "$temp" 2>/dev/null
+yourfritz_log_message 116
+exit 0
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

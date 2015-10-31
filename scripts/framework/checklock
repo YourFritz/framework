@@ -1,0 +1,98 @@
+#! /bin/sh
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# check the "do not init framework" flags to suppress any customizations              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# source the settings from our configuration directory                                #
+#                                                                                     #
+#######################################################################################
+source "$YOURFRITZ_CONFDIR/locks"
+#######################################################################################
+#                                                                                     #
+# check file semaphore settings first                                                 #
+#                                                                                     #
+#######################################################################################
+rc=0
+count=0
+while true && [ $rc -eq 0 ]; do
+	let count+=1
+	eval file="\$YF_SEMA_FILE_$count"
+	[ ${#file} -eq 0 ] && break
+	eval locations="\$YF_SEMA_LOCATIONS_$count"
+	for location in $locations; do
+		if [ -r $location/$file ]; then
+			yourfritz_log_message $YOURFRITZ_LOGFACILITY 122 "$file" "$location"
+			rc=122
+		fi
+	done
+done
+#######################################################################################
+#                                                                                     #
+# check environment settings as alternative locks                                     #
+#                                                                                     #
+#######################################################################################
+count=0
+while true && [ $rc -eq 0 ]; do
+	let count+=1
+	locked=0
+	eval name="\$YF_ENV_NAME_$count"
+	[ ${#name} -eq 0 ] && break
+	value="$(sed -n -e "s|^$name[ \t]*\(.*\)\$|\1|p" $YF_URLADER_ENVIRONMENT)"
+	eval match="\$YF_ENV_MATCH_$count"
+	eval against="\$YF_ENV_VALUE_$count"
+	case "$match" in
+		equals)
+			[ x"$value" == x"$against" ] && locked=1
+			;;
+		contains)
+			contains=$(echo "$value" | sed -n -e "s|^.*\($against\).*\$|\1|p")
+			[ x"$contains" == x"$against" ] && locked=1	
+			;;
+		lacks)
+			contains=$(echo "$value" | sed -n -e "s|^.*\($against\).*\$|\1|p")
+			[ x"$contains" != x"$against" ] && locked=1	
+			;;
+		*)
+			locked=0
+			;;	
+	esac
+	if [ $locked -eq 1 ]; then
+		yourfritz_log_message $YOURFRITZ_LOGFACILITY 123 "$name" "$match" "$against"
+		rc=123
+	fi
+done
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

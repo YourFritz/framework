@@ -1,0 +1,159 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# message definitions                                                                 #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# initframework                                                                       #
+#                                                                                     #
+#######################################################################################
+YF_MSG_0000="reserved\n"
+YF_MSG_0001="Framework initialization done.\n"
+YF_MSG_0002="runsvdir process (%d) got signal %s.\n"
+YF_MSG_0003="runsvdir process started with pid %d.\n"
+YF_MSG_0004="reserved up to YF_MSG_0079"
+
+YF_MSG_0041="\n"
+YF_MSG_0042="Added package '%s' to customization.\n"
+YF_MSG_0045="Hook '%s' called for 'init' action, result was %d.\n"
+
+#######################################################################################
+#                                                                                     #
+# files                                                                               #
+#                                                                                     #
+#######################################################################################
+YF_MSG_0060="Error %d remounting %s filesystem at mountpoint '%s' with %s access.\n"
+YF_MSG_0061=""
+YF_MSG_0062=""
+YF_MSG_0063=""
+YF_MSG_0064=""
+YF_MSG_0065=""
+YF_MSG_0066=""
+YF_MSG_0067=""
+YF_MSG_0068=""
+YF_MSG_0069=""
+YF_MSG_0070=""
+YF_MSG_0071=""
+YF_MSG_0072=""
+YF_MSG_0073=""
+YF_MSG_0074=""
+YF_MSG_0075=""
+YF_MSG_0076=""
+YF_MSG_0077=""
+YF_MSG_0078=""
+YF_MSG_0079=""
+#######################################################################################
+#                                                                                     #
+# packages                                                                            #
+#                                                                                     #
+#######################################################################################
+YF_MSG_0080="Adding package '%s' (%s) to customization.\n"
+YF_MSG_0081="Missing image for package '%s'.\n"
+YF_MSG_0082="Error %d dismounting %s filesystem from '%s' (dev %s).\n"
+YF_MSG_0083="Dismounted %s filesystem from '%s'.\n"
+YF_MSG_0084="Shutdown for package '%s' completed.\n"
+YF_MSG_0085="Invalid call to initpackage script, wrong number of arguments.\n"
+YF_MSG_0086="Invalid 2nd argument for initpackage script, expected "(in)active" as new state.\n"
+YF_MSG_0087="Invalid call reason for initpackage script.\n"
+YF_MSG_0088=""
+YF_MSG_0089=""
+YF_MSG_0090=""
+YF_MSG_0091=""
+YF_MSG_0092=""
+YF_MSG_0093=""
+YF_MSG_0094=""
+YF_MSG_0095=""
+YF_MSG_0096=""
+YF_MSG_0097=""
+YF_MSG_0098=""
+YF_MSG_0099="Maximum count of customization packages (%d) reached, further packages will be ignored.\n"
+#######################################################################################
+#                                                                                     #
+# setup_hook_routing                                                                  #
+#                                                                                     #
+#######################################################################################
+YF_MSG_0100="Hooked up customization script for action '%s'.\n"
+YF_MSG_0101="Missing event specification for a sourced event handler, skipped.\n"
+YF_MSG_0102="Error %d return from event handler script '%s'.\n"
+YF_MSG_0103="Invalid call to yourfritz_setup_package_hook.\n"
+YF_MSG_0104="Hook %s called for package %s with arguments '%s'.\n"
+YF_MSG_0105="Invalid call to yourfritz_unset_package_hook.\n"
+YF_MSG_0106=""
+YF_MSG_0107=""
+YF_MSG_0108=""
+YF_MSG_0109=""
+#######################################################################################
+#                                                                                     #
+# settings                                                                            #
+#                                                                                     #
+#######################################################################################
+YF_MSG_0110="Invalid call to yourfritz_save_package_settings.\n"
+YF_MSG_0111=""
+YF_MSG_0112=""
+YF_MSG_0113=""
+YF_MSG_0114="Missing setting for '%s' from assembled configuration file.\n"
+#######################################################################################
+#                                                                                     #
+# exitframework                                                                       #
+#                                                                                     #
+#######################################################################################
+YF_MSG_0115="Error %s unmounting path '%s' (device %s, fstype %s).\n"
+YF_MSG_0116="Framework shutdown completed.\n"
+#######################################################################################
+#                                                                                     #
+# initframework                                                                       #
+#                                                                                     #
+#######################################################################################
+YF_MSG_0117="The framework directory '%s' was mounted to '%s'.\n"
+YF_MSG_0118="The framework was already initialized.\n"
+YF_MSG_0119="Mounted %s filesystem on '%s' (from '%s').\n"
+YF_MSG_0120="Error %d mounting %s filesystem on '%s' (from '%s').\n"
+YF_MSG_0121="Error %d mounting the framework directory '%s' to '%s'.\n"
+#######################################################################################
+#                                                                                     #
+# checklock (duplicated in the 'initialize' script)                                   #
+#                                                                                     #
+#######################################################################################
+YF_MSG_0122="Customization suppressed due to existing semaphore file '%s' at location '%s'.\n"
+YF_MSG_0123="Customization suppressed because environment setting '%s' %s value '%s'.\n"
+#######################################################################################
+#                                                                                     #
+# initialize (duplicated there)                                                       #
+#                                                                                     #
+#######################################################################################
+YF_MSG_0124="Error %d executing script file '%s'.\n"
+YF_MSG_0125="Configuration file '%s' is missing or invalid.\n"
+YF_MSG_0126="Environment setting for configuration file (YOURFRITZ_CONF) is missing.\n"
+#######################################################################################
+#                                                                                     #
+#                             end of message definitions                              # 
+#                                                                                     #
+#######################################################################################

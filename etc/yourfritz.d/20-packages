@@ -1,0 +1,62 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# some basic path definitions for our framework to be able to adapt to different      #
+# environments                                                                        #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# the source directory where additional packages are managed                          #
+#                                                                                     #
+#######################################################################################
+YOURFRITZ_PACKAGESDIR="$YOURFRITZ_BASEDIR/packages"
+#######################################################################################
+#                                                                                     #
+# the source directory where additional packages are searched                         #
+#                                                                                     #
+#######################################################################################
+YOURFRITZ_SOURCEPKGDIR="$YOURFRITZ_BASEDIR/source"
+#######################################################################################
+#                                                                                     #
+# the maximum number of packages to install, used to limit loop device usage          #
+#                                                                                     #
+#######################################################################################
+YOURFRITZ_MAXPACKAGES=4
+#######################################################################################
+#                                                                                     #
+# the runtime directory used to configure and run services (runsvdir base directory)  #
+#                                                                                     #
+#######################################################################################
+export YOURFRITZ_RUNDIR="$YOURFRITZ_BASEDIR/services"
+#######################################################################################
+#                                                                                     #
+#                             end of configuration file                               # 
+#                                                                                     #
+#######################################################################################

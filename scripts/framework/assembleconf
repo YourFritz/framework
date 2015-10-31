@@ -1,0 +1,68 @@
+#! /bin/sh
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# build a compressed version of settings and include files from our configuration     #
+# directories to be included by other scripts without the documentation overhead      #
+#                                                                                     #
+#######################################################################################
+yourfritz_assemble_configuration()
+{
+	local file name tmpfile includesdir
+	tmpfile="/tmp/$(date +%s)_$$"
+	sed -e "/^#/d" "$YOURFRITZ_CONF" >"$tmpfile"
+	for file in $(find "$YOURFRITZ_CONFDIR" -type f -name "[0-9][0-9]-*" | sort); do
+		sed -e "/^#/d" "$file" >>"$tmpfile"
+	done
+	source "$tmpfile"
+	includesdir="$(echo "$YOURFRITZ_INCLUDESDIR" | sed -e "s|^$YOURFRITZ_BASEDIR|$YOURFRITZ_SOURCEDIR|")"
+	for file in $(find "$includesdir" -type f); do
+		count=0
+		while true; do
+			let count+=1
+			eval name="\$YOURFRITZ_EXCLUDE_FILE_$count"
+			[ ${#name} -eq 0 ] && break
+			if [ x"$name" == x"${file##*/}" ]; then
+				unset file
+				break
+			fi
+		done
+		if [ ${#file} -gt 0 ]; then
+			sed -e "/^#/d" "$file" >>"$tmpfile"
+		fi
+	done
+	sed -e "/^YOURFRITZ_EXCLUDE_FILE/d" -e "/^YF_/d" "$tmpfile"
+	rm "$tmpfile" 2>/dev/null
+}
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################

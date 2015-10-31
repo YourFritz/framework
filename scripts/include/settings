@@ -1,0 +1,55 @@
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
+#                                                                                     #
+# Copyright (C) 2014-2015 P. Haemmerlein / framework@yourfritz.de                     #
+#                                                                                     #
+# This program is free software; you can redistribute it and/or                       #
+# modify it under the terms of the GNU General Public License                         #
+# as published by the Free Software Foundation; either version 2                      #
+# of the License, or (at your option) any later version.                              #
+#                                                                                     #
+# This program is distributed in the hope that it will be useful,                     #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                      #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                       #
+# GNU General Public License under                                                    #
+#                                                                                     #
+# http://www.gnu.org/licenses/gpl-2.0.html                                            #
+#                                                                                     #
+# for more details.                                                                   #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# "FRITZ!Box" and "FRITZ!" are registered word marks and "AVM" is a registered        #
+# word and figurative mark of:                                                        #
+# AVM Computersysteme Vertriebs GmbH, 10559, Berlin, DE.                              #
+#                                                                                     #
+#######################################################################################
+#                                                                                     #
+# check_mandatory_settings                                                            #
+# - check every mandatory setting from our assembled configuration file               #
+#                                                                                     #
+#######################################################################################
+yourfritz_check_mandatory_settings()
+{
+	local count=0 rc=0 name value
+	source "$YOURFRITZ_CONFDIR/settings"
+	while true; do
+		let count+=1
+		eval name="\$YF_SETTING_MAND_$count"
+		[ ${#name} -eq 0 ] && break
+		eval value="\$YOURFRITZ_$name"
+		if [ ${#value} -eq 0 ]; then
+			yourfritz_log_message 114 "$name"
+			rc=114
+		fi
+	done
+	return $rc
+}
+#######################################################################################
+#                                                                                     # 
+#                        yourfritz customization framework                            # 
+#                                                                                     # 
+#######################################################################################
