@@ -1,0 +1,488 @@
+Index: shellinabox/Config.in
+===================================================================
+--- shellinabox/Config.in	(revision 13428)
++++ shellinabox/Config.in	(working copy)
+@@ -25,3 +25,12 @@
+ 	help
+ 		Building "Shell In A Box" w/o SSL will lead to a
+ 		much smaller binary, but access is unsecure!
++
++config FREETZ_PACKAGE_SHELLINABOX_BOXCERT
++	depends on FREETZ_PACKAGE_SHELLINABOX
++	bool "build with support for FRITZ!OS certificate"
++	select FREETZ_PACKAGE_PRIVATEKEYPASSWORD
++	default n
++	help
++		Building "Shell In A Box" with FRITZ!OS support
++		enables use of existing box certificate and key
+Index: shellinabox/files/root/etc/default.shellinabox/shellinabox.cfg
+===================================================================
+--- shellinabox/files/root/etc/default.shellinabox/shellinabox.cfg	(revision 13428)
++++ shellinabox/files/root/etc/default.shellinabox/shellinabox.cfg	(working copy)
+@@ -4,3 +4,4 @@
+ export SHELLINABOX_PORT='4200'
+ export SHELLINABOX_CERT=''
+ export SHELLINABOX_SERVICE=''
++export SHELLINABOX_USEBOXCERT='no'
+Index: shellinabox/files/root/etc/init.d/rc.shellinabox
+===================================================================
+--- shellinabox/files/root/etc/init.d/rc.shellinabox	(revision 13428)
++++ shellinabox/files/root/etc/init.d/rc.shellinabox	(working copy)
+@@ -5,18 +5,27 @@
+ DAEMON_LONG_NAME="Shell in a Box"
+ . /etc/init.d/modlibrc
+ 
+-
+ config() {
+-	mkdir -p /tmp/shellinabox
+-	if [ -n "${SHELLINABOX_CERT// /}" -a -z "${SHELLINABOX_NOSSL// /}" ]; then
+-		echo "$SHELLINABOX_CERT" > /tmp/shellinabox/certificate.pem
++	if [ $SHELLINABOX_USEBOXCERT != yes ]; then
++		mkdir -p /tmp/shellinabox
++		if [ -n "${SHELLINABOX_CERT// /}" -a -z "${SHELLINABOX_NOSSL// /}" ]; then
++			echo "$SHELLINABOX_CERT" > /tmp/shellinabox/certificate.pem
++		fi
+ 	fi
+ }
+ 
+ start() {
+-	local CMDLINE="-b --pidfile=$PID_FILE -c /tmp/shellinabox"
++	local CMDLINE="-b --pidfile=$PID_FILE"
+ 	[ -n "${SHELLINABOX_PORT// /}" ] && CMDLINE="$CMDLINE -p $SHELLINABOX_PORT"
+-	[ -n "${SHELLINABOX_NOSSL// /}" ] && CMDLINE="$CMDLINE -t"
++	if [ -n "${SHELLINABOX_NOSSL// /}" ]; then
++		CMDLINE="$CMDLINE -t"
++	else
++		if [ $SHELLINABOX_USEBOXCERT == yes ]; then
++			CMDLINE="$CMDLINE --cert-from-box"
++		else
++			CMDLINE="$CMDLINE -c /tmp/shellinabox"
++		fi
++	fi
+ 	[ -n "${SHELLINABOX_SERVICE// /}" ] && CMDLINE="$CMDLINE -s $SHELLINABOX_SERVICE"
+ 	modlib_startdaemon $DAEMON_BIN $CMDLINE $SHELLINABOX_OPTIONS
+ }
+Index: shellinabox/files/root/usr/lib/cgi-bin/shellinabox.cgi
+===================================================================
+--- shellinabox/files/root/usr/lib/cgi-bin/shellinabox.cgi	(revision 13428)
++++ shellinabox/files/root/usr/lib/cgi-bin/shellinabox.cgi	(working copy)
+@@ -20,7 +20,14 @@
+ else
+ 	displayssl="block"
+ fi
+-
++if [ $FREETZ_PACKAGE_SHELLINABOX_BOXCERT == y ]; then
++	check $SHELLINABOX_USEBOXCERT yes:boxcert *:owncert
++	if [ $SHELLINABOX_USEBOXCERT == yes ]; then
++		displayowncert="none"
++	else
++		displayowncert="block"
++	fi
++fi
+ sec_begin '$(lang de:"Starttyp" en:"Start type")'
+ cat << EOF
+ <p>
+@@ -53,6 +60,17 @@
+ </tr>
+ </table>
+ <div style="display:$displayssl" id="div_cert">
++EOF
++
++if [ $FREETZ_PACKAGE_SHELLINABOX_BOXCERT == y ]; then
++cat << EOF
++<p><input id="z1" type="radio" name="useboxcert" value="yes"$boxcert_chk><label for="z1" onclick='document.getElementById("div_owncert").style.display="none"'> $(lang de:"Zertifikat der FRITZ!Box verwenden" en:"use FRITZ!Box certificate from vendor's GUI")</label><br />
++<input id="z2" type="radio" name="useboxcert" value="no"$owncert_chk onclick='document.getElementById("div_owncert").style.display="block"'><label for="z2"> $(lang de:"eigenes Zertifikat verwenden" en:"use certificate from below")</label>
++<div style="display:$displayowncert" id="div_owncert">
++EOF
++fi
++
++cat << EOF
+ <p>$(lang de:"Zertifikat" en:"Certificate")
+ <div align="center"><textarea id="id_cert" style="width: 500px;" name="cert" rows="15" cols="80" wrap="off">$SHELLINABOX_CERT</textarea></div></p>
+ EOF
+Index: shellinabox/patches/boxcert/900-box_certificate.patch
+===================================================================
+--- shellinabox/patches/boxcert/900-box_certificate.patch	(revision 0)
++++ shellinabox/patches/boxcert/900-box_certificate.patch	(working copy)
+@@ -0,0 +1,356 @@
++--- configure
+++++ configure
++@@ -10571,8 +10571,7 @@
++ fi
++ 
++ 
++-for ac_header in libutil.h pthread.h pty.h strings.h sys/prctl.h sys/uio.h  \
++-                  util.h utmp.h utmpx.h
+++for ac_header in pthread.h pty.h strings.h sys/prctl.h sys/uio.h 
++ do :
++   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
++ ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
++@@ -10587,61 +10586,6 @@
++ done
++ 
++ 
++-for ac_func in login_tty
++-do :
++-  ac_fn_c_check_func "$LINENO" "login_tty" "ac_cv_func_login_tty"
++-if test "x$ac_cv_func_login_tty" = x""yes; then :
++-  cat >>confdefs.h <<_ACEOF
++-#define HAVE_LOGIN_TTY 1
++-_ACEOF
++-
++-else
++-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for login_tty in -lutil" >&5
++-$as_echo_n "checking for login_tty in -lutil... " >&6; }
++-if test "${ac_cv_lib_util_login_tty+set}" = set; then :
++-  $as_echo_n "(cached) " >&6
++-else
++-  ac_check_lib_save_LIBS=$LIBS
++-LIBS="-lutil  $LIBS"
++-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++-/* end confdefs.h.  */
++-
++-/* Override any GCC internal prototype to avoid an error.
++-   Use char because int might match the return type of a GCC
++-   builtin and then its argument prototype would still apply.  */
++-#ifdef __cplusplus
++-extern "C"
++-#endif
++-char login_tty ();
++-int
++-main ()
++-{
++-return login_tty ();
++-  ;
++-  return 0;
++-}
++-_ACEOF
++-if ac_fn_c_try_link "$LINENO"; then :
++-  ac_cv_lib_util_login_tty=yes
++-else
++-  ac_cv_lib_util_login_tty=no
++-fi
++-rm -f core conftest.err conftest.$ac_objext \
++-    conftest$ac_exeext conftest.$ac_ext
++-LIBS=$ac_check_lib_save_LIBS
++-fi
++-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_util_login_tty" >&5
++-$as_echo "$ac_cv_lib_util_login_tty" >&6; }
++-if test "x$ac_cv_lib_util_login_tty" = x""yes; then :
++-  LIBS="-lutil $LIBS"
++-                 $as_echo "#define HAVE_LOGIN_TTY 1" >>confdefs.h
++-
++-fi
++-
++-fi
++-done
++-
++-
++ for ac_func in strlcat
++ do :
++   ac_fn_c_check_func "$LINENO" "strlcat" "ac_cv_func_strlcat"
++@@ -10655,7 +10599,7 @@
++ 
++ 
++ for ac_func in getgrgid_r getgrnam_r gethostbyname_r getpwnam_r getpwuid_r  \
++-                openpty strcasestr getresuid getresgid setresuid setresgid getgrouplist
+++                strcasestr getresuid getresgid setresuid setresgid getgrouplist
++ do :
++   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
++ ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
++--- configure.ac
+++++ configure.ac
++@@ -20,14 +20,7 @@
++ AC_PROG_GCC_TRADITIONAL
++ 
++ dnl Check for header files that do not exist on all platforms
++-AC_CHECK_HEADERS([libutil.h pthread.h pty.h strings.h sys/prctl.h sys/uio.h  \
++-                  util.h utmp.h utmpx.h])
++-
++-dnl Most systems require linking against libutil.so in order to get login_tty()
++-AC_CHECK_FUNCS(login_tty, [],
++-               [AC_CHECK_LIB(util, login_tty,
++-                [LIBS="-lutil $LIBS"
++-                 AC_DEFINE(HAVE_LOGIN_TTY)])])
+++AC_CHECK_HEADERS([pthread.h pty.h strings.h sys/prctl.h sys/uio.h])
++ 
++ dnl Use strlcat() instead of strncat() to avoid spurious warnings
++ AC_CHECK_FUNCS([strlcat])
++--- libhttp/http.h
+++++ libhttp/http.h
++@@ -104,8 +104,9 @@
++ int  serverSupportsSSL();
++ void serverEnableSSL(Server *server, int flag);
++ void serverSetCertificate(Server *server, const char *filename,
++-                          int autoGenerateMissing);
+++                          int autoGenerateMissing, int useSNI);
++ void serverSetCertificateFd(Server *server, int fd);
+++void serverSetBoxCertificate(Server *server, const char *keyPassword);
++ void serverSetNumericHosts(Server *server, int numericHosts);
++ 
++ void httpTransfer(HttpConnection *http, char *msg, int len);
++--- libhttp/server.c
+++++ libhttp/server.c
++@@ -619,7 +619,8 @@
++ }
++ 
++ void serverSetCertificate(struct Server *server, const char *filename,
++-                          int autoGenerateMissing) {
+++                          int autoGenerateMissing, int useSNI) {
+++  server->ssl.noSNI = !useSNI;
++   sslSetCertificate(&server->ssl, filename, autoGenerateMissing);
++ }
++ 
++@@ -627,6 +628,10 @@
++   sslSetCertificateFd(&server->ssl, fd);
++ }
++ 
+++void serverSetBoxCertificate(struct Server *server, const char *keyPassword) {
+++  sslSetBoxCertificate(&server->ssl, keyPassword);
+++}
+++
++ void serverSetNumericHosts(struct Server *server, int numericHosts) {
++   server->numericHosts = numericHosts;
++ }
++--- libhttp/server.h
+++++ libhttp/server.h
++@@ -115,8 +115,9 @@
++ void serverLoop(struct Server *server);
++ void serverEnableSSL(struct Server *server, int flag);
++ void serverSetCertificate(struct Server *server, const char *filename,
++-                          int autoGenerateMissing);
+++                          int autoGenerateMissing, int useSNI);
++ void serverSetCertificateFd(struct Server *server, int fd);
+++void serverSetBoxCertificate(struct Server *server, const char *keyPassword);
++ void serverSetNumericHosts(struct Server *server, int numericHosts);
++ struct Trie *serverGetHttpHandlers(struct Server *server);
++ 
++--- libhttp/ssl.c
+++++ libhttp/ssl.c
++@@ -581,6 +581,21 @@
++   int rc = sslSetCertificateFromFd(context, fd);
++   return rc;
++ }
+++
+++static int sslSetCertificateFromBox(SSL_CTX *context, 
+++                                    const char *keyPassword) {
+++  int rc             = 1;
+++
+++  SSL_CTX_set_default_passwd_cb_userdata(context, (void *) keyPassword);
+++  if (SSL_CTX_use_certificate_chain_file(context, FRITZBOX_SSL_CERTFILE) == 1) {
+++    if (SSL_CTX_use_PrivateKey_file(context, FRITZBOX_SSL_KEYFILE, SSL_FILETYPE_PEM) == 1) {
+++      if (SSL_CTX_check_private_key(context) == 1) {
+++        rc           = 0;
+++      }
+++    }
+++  }
+++  return rc;
+++}
++ #endif
++ 
++ #ifdef HAVE_TLSEXT
++@@ -727,7 +742,7 @@
++   // Enable SNI support so that we can set a different certificate, if the
++   // client asked for it.
++ #ifdef HAVE_TLSEXT
++-  if (ptr != NULL) {
+++  if (!ssl->noSNI && ptr != NULL) {
++     check(ssl->sniCertificatePattern = strdup(filename));
++     check(SSL_CTX_set_tlsext_servername_callback(ssl->sslContext,
++                                                  sslSNICallback));
++@@ -791,6 +806,16 @@
++   ssl->generateMissing  = 0;
++ #endif
++ }
+++
+++void sslSetBoxCertificate(struct SSLSupport *ssl, const char *keyPassword) {
+++#ifdef HAVE_OPENSSL
+++  check(ssl->sslContext = SSL_CTX_new(SSLv23_server_method()));
+++  if (sslSetCertificateFromBox(ssl->sslContext, keyPassword)) {
+++    fatal("Cannot read FRITZ!Box certificate and key");
+++  }
+++  ssl->generateMissing  = 0;
+++#endif
+++}
++ 
++ int sslEnable(struct SSLSupport *ssl, int enabled) {
++   int old      = ssl->enabled;
++--- libhttp/ssl.h
+++++ libhttp/ssl.h
++@@ -179,6 +179,7 @@
++   SSL_CTX     *sslContext;
++   char        *sniCertificatePattern;
++   int         generateMissing;
+++  int         noSNI;
++   struct Trie sniContexts;
++ };
++ 
++@@ -190,6 +191,7 @@
++ void sslSetCertificate(struct SSLSupport *ssl, const char *filename,
++                        int autoGenerateMissing);
++ void sslSetCertificateFd(struct SSLSupport *ssl, int fd);
+++void sslSetBoxCertificate(struct SSLSupport *ssl, const char *keyPassword);
++ int  sslEnable(struct SSLSupport *ssl, int enabled);
++ void sslBlockSigPipe();
++ int  sslUnblockSigPipe();
++@@ -197,4 +199,7 @@
++                      const char *buf, int len);
++ void sslFreeHndl(SSL **sslHndl);
++ 
+++#define FRITZBOX_SSL_CERTFILE      "/var/flash/websrv_ssl_cert.pem"
+++#define FRITZBOX_SSL_KEYFILE       "/var/flash/websrv_ssl_key.pem"
+++
++ #endif
++--- shellinabox/launcher.c
+++++ shellinabox/launcher.c
++@@ -69,6 +69,8 @@
++ #include <termios.h>
++ #include <unistd.h>
++ 
+++#undef HAVE_LIBUTIL_H
+++
++ #ifdef HAVE_LIBUTIL_H
++ #include <libutil.h>
++ #endif
++@@ -85,6 +87,11 @@
++ #include <util.h>
++ #endif
++ 
+++#undef HAVE_UTMP_H
+++#undef HAVE_UTMPX_H
+++#undef HAVE_LOGIN_TTY
+++#undef HAVE_OPENPTY
+++
++ #ifdef HAVE_UTMP_H
++ #include <utmp.h>
++ #endif
++--- shellinabox/shellinaboxd.c
+++++ shellinabox/shellinaboxd.c
++@@ -63,6 +63,8 @@
++ #include <sys/stat.h>
++ #include <unistd.h>
++ 
+++#include <privatekeypassword/privatekeypassword.h>
+++
++ #ifdef HAVE_SYS_PRCTL_H
++ #include <sys/prctl.h>
++ #endif
++@@ -120,6 +122,8 @@
++ static const char     *pidfile;
++ static sigjmp_buf     jmpenv;
++ static volatile int   exiting;
+++static char           *keyPassword  = NULL;
+++static int            useSNI        = 1;
++ 
++ static char *jsonEscape(const char *buf, int len) {
++   static const char *hexDigit = "0123456789ABCDEF";
++@@ -818,7 +822,12 @@
++           !serverSupportsSSL() ? "" :
++           "  -c, --cert=CERTDIR          set certificate dir "
++           "(default: $PWD)\n"
++-          "      --cert-fd=FD            set certificate file from fd\n",
+++          "      --no-sni                disable SNI processing and use the\n"
+++          "                              the default certificate only, do not\n"
+++          "                              try auto-generation for unknown names\n"
+++          "      --cert-fd=FD            set certificate file from fd\n"
+++          "      --cert-from-box[=PSWD]  use FRITZ!Box certificate and decode\n"
+++          "                              the key with the 'PSWD'\n",
++           group, PORTNUM,
++           !serverSupportsSSL() ? "" :
++           "  -t, --disable-ssl           disable transparent SSL support\n"
++@@ -883,6 +892,8 @@
++       { "user-css",         1, 0,  0  },
++       { "verbose",          0, 0, 'v' },
++       { "version",          0, 0,  0  },
+++      { "cert-from-box",    2, 0,  0  },
+++      { "no-sni",           0, 0,  0  },
++       { 0,                  0, 0,  0  } };
++     int idx                = -1;
++     int c                  = getopt_long(argc, argv, optstring, options, &idx);
++@@ -1122,6 +1133,31 @@
++       // Version
++       message("ShellInABox version " VERSION " (revision " VCS_REVISION ")");
++       exit(0);
+++    } else if (!idx--) {
+++      // Use FRITZ!Box Certificate
+++      if (!hasSSL) {
+++        warn("Ignoring FRITZ!Box certificate, as SSL support is unavailable");
+++      }
+++      if (certificateDir || certificateFd >= 0) {
+++        fatal("Cannot use the FRITZ!Box certificate together with a certificate directory and/or file handle");
+++      }
+++      if (optarg) {
+++        check(keyPassword  = strdup(optarg));
+++      } else {
+++        debug("Trying to get box certificate password ...");
+++#ifdef STATIC
+++        getPrivateKeyPassword_setMethod(PRIVATEKEYPASSWORD_METHOD_PROXY);
+++#endif
+++        keyPassword        = getPrivateKeyPassword();
+++        if (!keyPassword) fatal("Could not get the password for box certificate");
+++      }
+++    } else if (!idx--) {
+++      // no-sni
+++      if (!hasSSL) {
+++        warn("Ignoring --no-sni option, as SSL support is unavailable");
+++      } else {
+++        useSNI             = 0;
+++      }
++     }
++   }
++   if (optind != argc) {
++@@ -1211,7 +1247,9 @@
++   // Enable SSL support (if available)
++   if (enableSSL) {
++     check(serverSupportsSSL());
++-    if (certificateFd >= 0) {
+++    if (keyPassword) {
+++      serverSetBoxCertificate(server, keyPassword);
+++    } else if (certificateFd >= 0) {
++       serverSetCertificateFd(server, certificateFd);
++     } else if (certificateDir) {
++       char *tmp;
++@@ -1219,10 +1257,10 @@
++         fatal("Invalid certificate directory name \"%s\".", certificateDir);
++       }
++       check(tmp = stringPrintf(NULL, "%s/certificate%%s.pem", certificateDir));
++-      serverSetCertificate(server, tmp, 1);
+++      serverSetCertificate(server, tmp, 1, useSNI);
++       free(tmp);
++     } else {
++-      serverSetCertificate(server, "certificate%s.pem", 1);
+++      serverSetCertificate(server, "certificate%s.pem", 1, useSNI);
++     }
++   }
++ }
++@@ -1329,6 +1367,7 @@
++   }
++   free(services);
++   free(certificateDir);
+++  if (keyPassword) free(keyPassword);
++   free(cgiSessionKey);
++   if (pidfile) {
++     // As a convenience, remove the pidfile, if it is still the version that
+Index: shellinabox/shellinabox.mk
+===================================================================
+--- shellinabox/shellinabox.mk	(revision 13428)
++++ shellinabox/shellinabox.mk	(working copy)
+@@ -6,6 +6,11 @@
+ $(PKG)_BINARY:=$($(PKG)_DIR)/$(pkg)d
+ $(PKG)_TARGET_BINARY:=$($(PKG)_DEST_DIR)/usr/bin/$(pkg)d
+ 
++ifeq ($(strip $(FREETZ_PACKAGE_SHELLINABOX_BOXCERT)),y)
++$(PKG)_CONDITIONAL_PATCHES+=boxcert
++$(PKG)_LDFLAGS += -lprivatekeypassword -ldl
++endif
++
+ $(PKG)_CONFIGURE_PRE_CMDS += $(call PKG_PREVENT_RPATH_HARDCODING,./configure)
+ 
+ # touch configure.ac to prevent aclocal.m4 & configure from being regenerated
+@@ -27,7 +32,7 @@
+ $(PKG)_LDFLAGS += -lm
+ 
+ ifeq ($(strip $(FREETZ_PACKAGE_SHELLINABOX_STATIC)),y)
+-$(PKG)_ADD_FLAGS += -lm -all-static -ldl
++$(PKG)_ADD_FLAGS += -lm -all-static -ldl -DSTATIC
+ endif
+ 
+ $(PKG_SOURCE_DOWNLOAD)
